@@ -1,7 +1,8 @@
 #include <iostream>
+#include "worker/worker.h"
 
 int main(){
-  auto *worker =  new Worker();
+  auto *worker =  new mikumari::Worker();
   worker->join();
 
   std::cout << "Worker Exsiting" << std::endl;

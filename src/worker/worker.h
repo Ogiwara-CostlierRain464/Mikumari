@@ -3,17 +3,30 @@
 
 #include <chrono>
 
-namespace Mikumari {
+#include "model_loader.h"
+
+namespace mikumari {
 
 
-class DummyInfer {
+
+class Action {
 public:
   std::chrono::steady_clock::time_point start;
 
   void run() {
     start = std::chrono::steady_clock::now();
 
+    // Load weights
+    std::string weights;
+    readCWConfigAsString(
+      "../model/model.4.clockwork_params",
+      weights);
+
     // Load model
+    ModelData model = loadModelData();
+
+    // Malloc and Copy the weights
+    std::vector<char*> ptrs = cudaMallocHostMultiple(weights);
 
     // Copy Input
 
@@ -23,8 +36,9 @@ public:
 
 class Worker {
 public:
-  void exec() {
-    // do infer
+  void join() {
+    auto a = Action();
+    a.run();
   }
 };
 
