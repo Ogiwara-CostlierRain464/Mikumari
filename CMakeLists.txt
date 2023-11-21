@@ -32,5 +32,6 @@ add_executable(Worker
 
 target_link_libraries(Worker PUBLIC
         cuda
+        cudart
         tvm_runtime
 )

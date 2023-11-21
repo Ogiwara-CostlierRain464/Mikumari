@@ -1,6 +1,7 @@
 #ifndef MODEL_LOADER_H
 #define MODEL_LOADER_H
 #include <string>
+#include <cstring>
 #include <fstream>
 #include <sstream>
 #include <unistd.h>
