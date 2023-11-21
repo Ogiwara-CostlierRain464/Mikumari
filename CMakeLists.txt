@@ -3,4 +3,9 @@ project(Mikumari)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(Mikumari main.cpp)
+file(GLOB_RECURSE INCLUDE src/*.h)
+
+add_executable(Worker
+        ${INCLUDE}
+        src/worker/main.cpp
+)
