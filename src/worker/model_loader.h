@@ -133,6 +133,39 @@ inline std::vector<char*> cudaMallocHostMultiple(
   return ptrs;
 }
 
+class Model {
+public:
+  // Cool
+  ShmemFile * shmem_file;
+  std::string serialized_spec;
+  int weights_size;
+  // alloced with cudaMallocHost
+  char* weights_pinned_host_memory;
+
+  Model(
+    ShmemFile * shmem,
+    const std::string &spec,
+    int weights_size_,
+    char *weights_pinned_host_memory_
+    ):
+  shmem_file(shmem), serialized_spec(spec),
+  weights_size(weights_size_), weights_pinned_host_memory(weights_pinned_host_memory_)
+  {}
+
+  // Warm
+  so::TVMWarmSharedObject* warm_so = nullptr;
+
+
+  void instantiate_models_on_host() {
+
+  }
+
+  void instantiate_models_on_device() {
+
+  }
+
+};
+
 }
 
 #endif //MODEL_LOADER_H

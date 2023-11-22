@@ -21,13 +21,13 @@
  * \file common.h
  * \brief Common utilities for CUDA
  */
-#ifndef _CLOCKWORK_CUDA_COMMON_H_
-#define _CLOCKWORK_CUDA_COMMON_H_
+#ifndef _MIKUMARI_CUDA_COMMON_H_
+#define _MIKUMARI_CUDA_COMMON_H_
 
 #include <cuda_runtime.h>
 #include <string>
 
-namespace clockwork {
+namespace mikumari {
 
 #define CUDA_DRIVER_CALL(x)                                             \
   {                                                                     \
@@ -47,6 +47,24 @@ namespace clockwork {
         << "CUDA: " << cudaGetErrorString(e);                      \
   }
 
+thread_local cudaStream_t current_stream;
+
+void initializeCudaStream(unsigned gpu_id, int priority) {
+  CUDA_CALL(cudaSetDevice(gpu_id));
+  cudaStream_t stream;
+  CUDA_CALL(cudaStreamCreateWithPriority(&stream, cudaStreamNonBlocking, priority));
+  SetStream(stream);
 }
 
-#endif  // _CLOCKWORK_CUDA_COMMON_H_
+inline void SetStream(cudaStream_t stream) {
+  current_stream = stream;
+}
+
+cudaStream_t Stream() {
+  return current_stream;
+}
+
+}
+
+
+#endif  // _MIKUMARI_CUDA_COMMON_H_

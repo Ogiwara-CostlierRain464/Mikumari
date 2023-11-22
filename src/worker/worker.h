@@ -23,12 +23,20 @@ public:
       weights);
 
     // Load model
-    ModelData model = loadModelData();
+    ModelData model_data = loadModelData();
 
     // Malloc and Copy the weights
     std::vector<char*> ptrs = cudaMallocHostMultiple(weights);
 
     // Copy Input
+    auto model = new Model(
+      model_data.so_memfile,
+      model_data.serialized_spec,
+      weights.size(),
+      ptrs[0]
+    );
+
+
 
     // Do Infer
   }
