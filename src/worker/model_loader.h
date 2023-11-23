@@ -212,6 +212,9 @@ inline thread_local PerGPULimiters transfer_limiters(2, 0);
 
 class Model {
 public:
+  unsigned gpu_id;
+  bool rate_limit = true;
+
   // Cool
   ShmemFile * shmem_file;
   std::string serialized_spec;
@@ -235,11 +238,16 @@ public:
     ShmemFile * shmem,
     const std::string &spec,
     int weights_size_,
-    char *weights_pinned_host_memory_
+    char *weights_pinned_host_memory_,
+    unsigned gpu_id
     ):
-  shmem_file(shmem), serialized_spec(spec),
-  weights_size(weights_size_), weights_pinned_host_memory(weights_pinned_host_memory_) {
-
+  shmem_file(shmem),
+  serialized_spec(spec),
+  weights_size(weights_size_),
+  weights_pinned_host_memory(weights_pinned_host_memory_),
+  gpu_id(gpu_id){
+    exec_limiter = exec_limiters.get(gpu_id);
+    transfer_limiter = transfer_limiters.get(gpu_id);
   }
 
   // Warm
@@ -254,12 +262,87 @@ public:
   TVMHotSharedObject* hot_so = nullptr;
 
   void instantiate_models_on_host() {
+    CHECK(warm_so == nullptr) << "instantiate_model_on_host warm_so is not nullptr";
+    CHECK(spec == nullptr) << "instantiate_model_on_host spec is not nullptr";
+    CHECK(op_execs == nullptr) << "instantiate_model_on_host op_execs is not nullptr";
 
+    // 1: dlopen the TVM shared object and extract functions
+    warm_so = new TVMWarmSharedObject(shmem_file->filename);
+
+    // 2: deserialize the model metadata
+    spec = new PageMappedModelDef();
+    PageMappedModelDef::ReadFrom(serialized_spec, *spec);
+    weights_pages_count = spec->weights_pages.size();
+    io_size = spec->io_memory;
+    workspace_size = spec->workspace_memory;
+
+    inputs_size = 0;
+    for (auto &input : spec->inputs) {
+      inputs_size += input.size;
+    }
+
+    outputs_size = 0;
+    for (auto &output : spec->outputs) {
+      outputs_size += output.size;
+    }
+
+    // 3: setup model executor
+    op_execs = new std::vector<OpExec>(spec->ops.size());
+    for (unsigned i = 0; i < spec->ops.size(); i++) {
+      make_op_exec(spec->ops[i], (*op_execs)[i]);
+    }
+
+    // Close original so_memfile
+    shmem_file->close();
   }
 
   void instantiate_models_on_device() {
+    CHECK(hot_so == nullptr) << "instantiate_model_on_device hot_so is not nullptr";
 
+    /* 1: load the CUDA module onto device, which ultimately calls cuModuleLoad
+    cuModuleLoad requires a barrier on kernel execution, and will block until
+    current outstanding kernels have completed.  It will also block submission
+    of any new kernels. */
+    CUDA_CALL(cudaSetDevice(gpu_id));
+    hot_so = warm_so->load();
   }
+
+private:
+  void make_op_exec(PageMappedOpDef &spec, OpExec &op) {
+    CUDA_CALL(cudaSetDevice(gpu_id));
+    op.spec = &spec;
+
+    op.num_inputs = spec.inputs.size();
+
+    op.input_tensors.resize(op.num_inputs);
+    op.func_inputs.resize(op.num_inputs);
+    op.func_tcodes.resize(op.num_inputs);
+
+    for (unsigned i = 0; i < op.num_inputs; i++) {
+      auto &tensor = op.input_tensors[i];
+      auto &tspec = spec.inputs[i];
+      tensor.data = nullptr;
+      tensor.ctx = DLContext{kDLGPU, 0}; // TODO: multiple devices
+      tensor.ndim = tspec.shape.size();
+      tensor.dtype = DLDataType{
+        static_cast<uint8_t>(tspec.code),
+        static_cast<uint8_t>(tspec.bits),
+        static_cast<uint16_t>(tspec.lanes)
+      };
+      tensor.shape = tspec.shape.data();
+      tensor.strides = nullptr;
+      tensor.byte_offset = 0;
+      op.func_inputs[i].v_handle = &tensor;
+      op.func_tcodes[i] = kTVMDLTensorHandle;
+    }
+
+    op.workspace_ptrs.resize(spec.workspace_allocs.size());
+
+    op.so_function_name = this->spec->so_functions[spec.so_function];
+    op.f = reinterpret_cast<OpFunc>(warm_so->so.GetSymbol(op.so_function_name.c_str()));
+  }
+
+
 
 };
 

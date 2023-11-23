@@ -33,8 +33,16 @@ public:
       model_data.so_memfile,
       model_data.serialized_spec,
       weights.size(),
-      ptrs[0]
+      ptrs[0],
+      0 // am I correct?
     );
+
+    model->instantiate_models_on_host();
+    model->instantiate_models_on_device();
+
+
+    // End of load task
+
 
 
 
