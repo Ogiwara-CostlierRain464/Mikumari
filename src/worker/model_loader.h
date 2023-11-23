@@ -10,6 +10,8 @@
 #include <iostream>
 #include "dmlc/logging.h"
 #include "cuda_common.h"
+#include "modeldef.h"
+#include "so.h"
 
 namespace mikumari {
 
@@ -133,6 +135,81 @@ inline std::vector<char*> cudaMallocHostMultiple(
   return ptrs;
 }
 
+// TVM Function signature for generated packed function in shared library
+typedef int (*OpFunc)(void* args, int* type_codes, int num_args);
+
+struct OpExec {
+  PageMappedOpDef* spec;
+
+  unsigned num_inputs;
+  std::vector<DLTensor> input_tensors;
+  std::vector<TVMValue> func_inputs;
+  std::vector<int> func_tcodes;
+
+  std::vector<void*> workspace_ptrs;
+
+  std::string so_function_name;
+  OpFunc f;
+};
+
+// Rate-limits cuda calls on a stream
+class CudaRateLimiter {
+private:
+  const unsigned num_events, skip;
+  unsigned position, count;
+
+public:
+  std::vector<cudaEvent_t> events{};
+  CudaRateLimiter(unsigned num_events, unsigned skip) :
+      num_events(num_events), skip(skip), position(0), count(0) {
+    events.resize(num_events);
+    for (unsigned i = 0; i < num_events; i++) {
+      CUDA_CALL(cudaEventCreateWithFlags(&events[i], cudaEventDisableTiming));
+    }
+  }
+  ~CudaRateLimiter() {
+    for (unsigned i = 0; i < num_events; i++) {
+      CUDA_CALL(cudaEventDestroy(events[i]));
+    }
+  }
+
+  void limit(cudaStream_t stream) {
+    if (count++ == skip) {
+      CUDA_CALL(cudaEventSynchronize(events[position]));
+      CUDA_CALL(cudaEventRecord(events[position], stream));
+
+      position = (position+1) % num_events;
+      count = 0;
+    }
+  }
+
+};
+
+class PerGPULimiters {
+public:
+  const unsigned num_events;
+  const unsigned skip;
+  std::vector<CudaRateLimiter*> limiters;
+
+  PerGPULimiters(unsigned num_events, unsigned skip) : num_events(num_events), skip(skip) {
+  }
+
+  CudaRateLimiter* get(unsigned gpu_id) {
+    if (gpu_id >= limiters.size()) {
+      limiters.resize(gpu_id+1, nullptr);
+    }
+    if (limiters[gpu_id] == nullptr) {
+      CUDA_CALL(cudaSetDevice(gpu_id));
+      limiters[gpu_id] = new CudaRateLimiter(num_events, skip);
+    }
+    return limiters[gpu_id];
+  }
+
+};
+
+inline thread_local PerGPULimiters exec_limiters(2, 20);
+inline thread_local PerGPULimiters transfer_limiters(2, 0);
+
 class Model {
 public:
   // Cool
@@ -142,6 +219,18 @@ public:
   // alloced with cudaMallocHost
   char* weights_pinned_host_memory;
 
+  /* These events are used to rate-limit submission of asynchronous CUDA operations.
+  Executing a model comprises potentially dozens of CUDA kernels.  With paged memory,
+  copying model weights comprises on the order of a dozen asynchronous memcpys.
+  Internally, CUDA has very short queues for managing submitted asynchronous tasks,
+  and surprisingly quickly will block ALL asynchronous submissions if there are too
+  many outstanding, even those in completely independent streams */
+  CudaRateLimiter* exec_limiter;
+  CudaRateLimiter* transfer_limiter;
+
+  // Just used for model management; some models have measurements
+  uint64_t exec_measurement = 0;
+
   Model(
     ShmemFile * shmem,
     const std::string &spec,
@@ -149,12 +238,20 @@ public:
     char *weights_pinned_host_memory_
     ):
   shmem_file(shmem), serialized_spec(spec),
-  weights_size(weights_size_), weights_pinned_host_memory(weights_pinned_host_memory_)
-  {}
+  weights_size(weights_size_), weights_pinned_host_memory(weights_pinned_host_memory_) {
+
+  }
 
   // Warm
-  so::TVMWarmSharedObject* warm_so = nullptr;
+  PageMappedModelDef* spec = nullptr;
+  unsigned weights_pages_count;
+  size_t io_size, workspace_size, inputs_size, outputs_size;
 
+  std::vector<OpExec>* op_execs = nullptr;
+  TVMWarmSharedObject* warm_so = nullptr;
+
+  // Hot
+  TVMHotSharedObject* hot_so = nullptr;
 
   void instantiate_models_on_host() {
 

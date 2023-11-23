@@ -11,6 +11,7 @@ include(GNUInstallDirs)
 
 include_directories(
         src
+        external
         $ENV{TVM_HOME}/include
         $ENV{TVM_HOME}/3rdparty/dmlc-core/include
         $ENV{TVM_HOME}/3rdparty/dlpack/include
@@ -25,8 +26,10 @@ link_directories(
 )
 
 file(GLOB_RECURSE INCLUDE src/*.h)
+file(GLOB_RECURSE SRC src/*.cpp)
 add_executable(Worker
         ${INCLUDE}
+        ${SRC}
         src/worker/main.cpp
 )
 
