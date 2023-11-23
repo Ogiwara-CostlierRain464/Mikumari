@@ -28,7 +28,6 @@ public:
     // Malloc and Copy the weights
     std::vector<char*> ptrs = cudaMallocHostMultiple(weights);
 
-    // Copy Input
     auto model = new Model(
       model_data.so_memfile,
       model_data.serialized_spec,
@@ -43,6 +42,9 @@ public:
 
     // End of load task
 
+    // Copy Input task
+    // skip
+    auto input_size = model->inputs_size(4);
 
 
 
