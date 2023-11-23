@@ -16,7 +16,7 @@
 namespace mikumari {
 
 // Used for loading .clockwork config
-inline void readCWConfigAsString(
+inline void readFileAsString(
   const std::string &filename,
   std::string &dst) {
 
@@ -261,7 +261,7 @@ public:
   // Hot
   TVMHotSharedObject* hot_so = nullptr;
 
-  void instantiate_models_on_host() {
+  void instantiate_model_on_host() {
     CHECK(warm_so == nullptr) << "instantiate_model_on_host warm_so is not nullptr";
     CHECK(spec == nullptr) << "instantiate_model_on_host spec is not nullptr";
     CHECK(op_execs == nullptr) << "instantiate_model_on_host op_execs is not nullptr";
@@ -296,7 +296,7 @@ public:
     shmem_file->close();
   }
 
-  void instantiate_models_on_device() {
+  void instantiate_model_on_device() {
     CHECK(hot_so == nullptr) << "instantiate_model_on_device hot_so is not nullptr";
 
     /* 1: load the CUDA module onto device, which ultimately calls cuModuleLoad

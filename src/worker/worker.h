@@ -3,6 +3,8 @@
 
 #include <chrono>
 
+#include "batched.h"
+#include "memory.h"
 #include "model_loader.h"
 
 namespace mikumari {
@@ -18,7 +20,7 @@ public:
 
     // Load weights
     std::string weights;
-    readCWConfigAsString(
+    readFileAsString(
       "../model/model.4.clockwork_params",
       weights);
 
@@ -36,18 +38,35 @@ public:
       0 // am I correct?
     );
 
-    model->instantiate_models_on_host();
-    model->instantiate_models_on_device();
+    std::vector<std::pair<unsigned, Model*>> models{};
+    models.emplace_back(4, model);
 
+    auto batched = new BatchedModel(
+      weights.size(),
+      ptrs[0],
+      models,
+      0,
+      "../model"
+    );
 
+    batched->instantiate_models_on_host();
+    batched->instantiate_models_on_device();
     // End of load task
 
     // Copy Input task
     // skip
-    auto input_size = model->inputs_size(4);
+    auto input_size = batched->input_size(4); // batch_size
 
+    char *base_ptr;
+    CUDA_CALL(cudaSetDevice(0));
+    CUDA_CALL(cudaMalloc(&base_ptr, 536'870'912L)); // workspace size
 
+    auto alloc = std::make_shared<MemoryAllocation>(base_ptr, 0, input_size);
+    CHECK(base_ptr != nullptr);
 
+    size_t single_input_size = batched->input_size(1);
+
+    // use input generator to
     // Do Infer
   }
 };
