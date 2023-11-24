@@ -1,0 +1,8 @@
+// Example cfg file that should be found with models with the name `model.measurements`
+
+weights = 10000000L;         // Weight transfer time in nanoseconds
+b1 = 1000000L;                // Batchsize 1 exec time in nanoseconds
+b2 = 2000000L;
+b4 = 4000000L;
+b8 = 8000000L;
+b16 = 16000000L;

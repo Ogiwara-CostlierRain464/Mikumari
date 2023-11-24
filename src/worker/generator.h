@@ -7,6 +7,7 @@
 #include <dmlc/logging.h>
 #include <sys/stat.h>
 #include <__filesystem/directory_iterator.h>
+#include <lz4.h>
 
 #include "model_loader.h"
 
@@ -61,9 +62,29 @@ public:
         }
       }
     }
+
+    this->all_inputs = new char[total_size];
+    size_t offset = 0;
+    for (auto &input : all_inputs) {
+      std::memcpy(this->all_inputs+offset, input.data(), input.size());
+      offset += input.size();
+    }
   }
 
-  void generateInput(size_t size, char* buf);
+  void generateInput(size_t size, char* buf) {
+    auto it = uncompressed_inputs.find(size);
+    if(it != uncompressed_inputs.end()) {
+      auto &inputs = it->second;
+      std::uniform_int_distribution<> d(0, inputs.size()-1);
+      auto &input = inputs[d(rng)];
+      CHECK(input.size() == size);
+      std::memcpy(buf, input.data(), input.size());
+    }else if(size < this->all_inputs_size) {
+      std::uniform_int_distribution<> d(0, all_inputs_size - size - 1);
+      size_t start_offset = d(rng);
+      std::memcpy(buf, all_inputs + start_offset, size);
+    }
+  }
 };
 
 }

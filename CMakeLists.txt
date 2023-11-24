@@ -31,6 +31,8 @@ add_executable(Worker
         ${INCLUDE}
         ${SRC}
         src/worker/main.cpp
+        external/lz4.c
+        external/lz4hc.c
 )
 
 target_link_libraries(Worker PUBLIC
