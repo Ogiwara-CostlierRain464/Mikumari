@@ -16,6 +16,16 @@ class MemoryAllocation {
   offset(offset), size(size) {}
 };
 
+// Simple manager for workspace memory that allocates in a circular buffer
+class MemoryPool {
+private:
+  std::mutex mutex;
+
+  // Currently outstanding allocations
+  std::unordered_map<char*, std::shared_ptr<MemoryAllocation>> ptr_allocations;
+  std::deque<std::shared_ptr<MemoryAllocation>> allocations;
+};
+
 }
 
 #endif

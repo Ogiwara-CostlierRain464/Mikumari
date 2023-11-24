@@ -307,6 +307,11 @@ public:
     hot_so = warm_so->load();
   }
 
+  size_t io_memory_size() {
+    CHECK(spec != nullptr) << "io_memory_size spec is nullptr";
+    return io_size;
+  }
+
 private:
   void make_op_exec(PageMappedOpDef &spec, OpExec &op) {
     CUDA_CALL(cudaSetDevice(gpu_id));

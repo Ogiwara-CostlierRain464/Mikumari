@@ -4,6 +4,7 @@
 #include <chrono>
 
 #include "batched.h"
+#include "generator.h"
 #include "memory.h"
 #include "model_loader.h"
 
@@ -30,6 +31,7 @@ public:
     // Malloc and Copy the weights
     std::vector<char*> ptrs = cudaMallocHostMultiple(weights);
 
+    size_t batch_size = 4;
     auto model = new Model(
       model_data.so_memfile,
       model_data.serialized_spec,
@@ -39,7 +41,7 @@ public:
     );
 
     std::vector<std::pair<unsigned, Model*>> models{};
-    models.emplace_back(4, model);
+    models.emplace_back(batch_size, model);
 
     auto batched = new BatchedModel(
       weights.size(),
@@ -55,7 +57,7 @@ public:
 
     // Copy Input task
     // skip
-    auto input_size = batched->input_size(4); // batch_size
+    auto input_size = batched->input_size(batch_size); // batch_size
 
     char *base_ptr;
     CUDA_CALL(cudaSetDevice(0));
@@ -65,6 +67,15 @@ public:
     CHECK(base_ptr != nullptr);
 
     size_t single_input_size = batched->input_size(1);
+    InputGenerator generator{};
+    size_t offset = 0;
+    for(int i = 0; i < batch_size; i++) {
+      generator.generateInput(single_input_size, base_ptr + offset);
+      offset += single_input_size;
+    }
+
+    size_t io_memory_size = batched->io_memory_size(batch_size);
+
 
     // use input generator to
     // Do Infer

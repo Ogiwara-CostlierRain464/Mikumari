@@ -69,6 +69,11 @@ public:
     return single_input_size * batch_size;
   }
 
+  size_t io_memory_size(unsigned batch_size) {
+    check_batch_size(batch_size);
+    return model_lookup[batch_size]->io_memory_size();
+  }
+
 public:
   static BatchedModel* loadFromDisk(std::string base_filename, unsigned gpu_id);
   static std::vector<BatchedModel*> loadMultipleFromDisk(std::string base_filename, unsigned gpu_id, int num_copies);
