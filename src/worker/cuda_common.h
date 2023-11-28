@@ -18,7 +18,7 @@
  */
 
 /*!
- * \file common.h
+ * \file cuda_common.h
  * \brief Common utilities for CUDA
  */
 #ifndef _MIKUMARI_CUDA_COMMON_H_
@@ -63,6 +63,15 @@ inline void SetStream(cudaStream_t stream) {
 cudaStream_t Stream() {
   return current_stream;
 }
+
+struct hash_pair {
+  template <class T1, class T2>
+  size_t operator()(const std::pair<T1, T2>& p) const {
+    auto hash1 = std::hash<T1>{}(p.first);
+    auto hash2 = std::hash<T2>{}(p.second);
+    return hash1 ^ hash2;
+  }
+};
 
 }
 

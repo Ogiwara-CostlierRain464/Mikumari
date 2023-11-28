@@ -17,9 +17,10 @@ public:
   std::chrono::steady_clock::time_point start;
 
   void run() {
-    start = std::chrono::steady_clock::now();
+    MemoryManager manager{WorkerConfig{}};
 
     // Load Model From Disk Task
+    // from BatchedModel::loadMultipleFromDiskMultiGPU
 
     // Load weights
     std::string weights;
@@ -35,6 +36,7 @@ public:
 
     size_t batch_size = 4;
     size_t gpu_id = 0;
+    int model_id = 0;
 
     auto model = new Model(
       model_data.so_memfile,
@@ -57,50 +59,55 @@ public:
 
     batched->instantiate_models_on_host();
     batched->instantiate_models_on_device();
+
+    bool success = manager.models->put_if_absent(
+      model_id,  // model id
+      gpu_id,
+      new RuntimeModel(batched, gpu_id)
+    );
+    CHECK(success);
     // End of load task
 
 
     // Load weight task
-    auto weights_caches =
-    batched->num_weights_pages()
+    auto rm = manager.models->get(model_id, gpu_id);
+
+    unsigned num_pages = rm->model->num_weights_pages(
+      manager.weights_caches[gpu_id]->page_size
+    );
+    auto new_weights = manager.weights_caches[gpu_id]->alloc(num_pages, []{});
+    CHECK(new_weights != nullptr);
+    rm->model->transfer_weights_to_device(new_weights->page_pointers, Stream());
 
 
     // Copy Input task
     // skip
-    auto input_size = batched->input_size(batch_size); // batch_size
-    auto host_io_pool = CUDAHostMemoryPool::create(536'870'912L);
-    auto input = host_io_pool->alloc(input_size);
+    auto input_size = rm->model->input_size(batch_size); // batch_size
+    auto input = manager.host_io_pool->alloc(input_size);
     CHECK_NOTNULL(input);
 
-    InputGenerator generator{};
-    size_t single_input_size = batched->input_size(1);
+    size_t single_input_size = rm->model->input_size(1);
     size_t offset = 0;
     for(int i = 0; i < batch_size; i++) {
-      generator.generateInput(single_input_size, input + offset);
+      manager.input_generator->generateInput(single_input_size, input + offset);
       offset += single_input_size;
     }
 
-    size_t io_memory_size = batched->io_memory_size(batch_size);
-
-    // io_pool_size
-    auto gpu_io_pool = CUDAMemoryPool::create(536'870'912L, gpu_id);
-    auto io_memory = gpu_io_pool->alloc(io_memory_size);
+    size_t io_memory_size = rm->model->io_memory_size(batch_size);
+    auto io_memory = manager.io_pools[gpu_id]->alloc(io_memory_size);
     CHECK_NOTNULL(io_memory);
 
+    rm->model->transfer_input_to_device(batch_size, input, io_memory, Stream());
 
-    batched->transfer_input_to_device(batch_size, input, io_memory, Stream());
 
 
 
     // Do Infer
-    size_t workspace_size = batched->workspace_memory_size(batch_size);
+    size_t workspace_size = rm->model->workspace_memory_size(batch_size);
+    auto workspace_memory = manager.workspace_pools[gpu_id]->alloc(workspace_size);
+    CHECK(workspace_memory);
 
-    // workspace_pool_size
-    auto workspace_pool = CUDAMemoryPool::create(536'870'912L, gpu_id);
-    auto workspace_memory = workspace_pool->alloc(workspace_size);
-    CHECK_NOTNULL(workspace_memory);
-
-    batched->call(batch_size, weights->page_pointers, io_memory, workspace_memory, Stream());
+    rm->model->call(batch_size, rm->weights->page_pointers, io_memory, workspace_memory, Stream());
 
   }
 };

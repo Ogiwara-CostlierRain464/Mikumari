@@ -296,6 +296,33 @@ public:
     shmem_file->close();
   }
 
+  /* Preconditions: set_weights_pages */
+  void transfer_weights_to_device(
+    std::vector<char*> &weights_pages,
+    cudaStream_t stream) {
+    CUDA_CALL(cudaSetDevice(gpu_id));
+    for (unsigned i = 0; i < weights_pages_count; i++) {
+      PageDef &def = spec->weights_pages[i];
+      size_t current_offset = 0;
+      size_t increment = 16 * 1024*1024;
+      while (current_offset < def.size) {
+        size_t transfer_size = current_offset + increment <= def.size ? increment : (def.size - current_offset);
+        CUDA_CALL(
+          cudaMemcpyAsync(
+            weights_pages[i] + current_offset, // dstptr
+            weights_pinned_host_memory + def.base_offset + current_offset, // srcptr
+            transfer_size,
+            cudaMemcpyHostToDevice,
+            stream
+          )
+        )
+        current_offset += transfer_size;
+        if (rate_limit) cudaStreamSynchronize(stream); // Straight up synchronize for copy rate limiting
+      }
+    }
+  }
+
+
   void instantiate_model_on_device() {
     CHECK(hot_so == nullptr) << "instantiate_model_on_device hot_so is not nullptr";
 
@@ -338,6 +365,34 @@ public:
     return workspace_size;
   }
 
+  unsigned num_weights_pages(unsigned page_size) {
+    CHECK(spec != nullptr) << "num_weights_pages spec is nullptr";
+    CHECK(spec->configured_weights_page_size == page_size)
+        << "Clockwork model was configured with mismatched page size, found "
+        << spec->configured_weights_page_size << ", expected " << page_size;
+    return weights_pages_count;
+  }
+
+  /* Preconditions: instantiate_model_on_device */
+  void call(std::vector<char*> &weights_pages,
+    char* &io_memory, char* &workspace_memory,
+    cudaStream_t stream) {
+    CHECK(hot_so != nullptr) << "call hot_so is nullptr";
+    CUDA_CALL(cudaSetDevice(gpu_id));
+
+    std::vector<char*> pages;
+    pages.insert(pages.end(), weights_pages.begin(), weights_pages.end());
+    pages.push_back(io_memory);
+    pages.push_back(workspace_memory);
+
+    SetStream(stream);
+
+    for (unsigned i = 0; i < op_execs->size(); i++) {
+      call_op_exec((*op_execs)[i], pages);
+      if (rate_limit) exec_limiter->limit(stream);
+    }
+  }
+
 private:
   void make_op_exec(PageMappedOpDef &spec, OpExec &op) {
     CUDA_CALL(cudaSetDevice(gpu_id));
@@ -373,8 +428,29 @@ private:
     op.f = reinterpret_cast<OpFunc>(warm_so->so.GetSymbol(op.so_function_name.c_str()));
   }
 
+  void call_op_exec(OpExec &op, std::vector<char*> &pages) {
+    CUDA_CALL(cudaSetDevice(gpu_id));
+    // Point the inputs to the right place
+    for (unsigned i = 0; i < op.num_inputs; i++) {
+      auto &tensor = op.input_tensors[i];
+      auto &spec = op.spec->inputs[i];
+      tensor.data = pages[spec.page] + spec.page_offset;
+    }
+    // Set the workspace alloc pointers
+    for (unsigned i = 0; i < op.workspace_ptrs.size(); i++) {
+      auto &spec = op.spec->workspace_allocs[i];
+      op.workspace_ptrs[i] = pages[spec.page] + spec.page_offset;
+    }
+    TVMBackendWorkspaceManager::Set(op.workspace_ptrs);
 
-
+    int ret = (*(op.f))(
+      op.func_inputs.data(),
+      op.func_tcodes.data(),
+      op.num_inputs
+    );
+    TVMBackendWorkspaceManager::Clear();
+    CHECK_EQ(ret, 0) << TVMGetLastError();
+  }
 };
 
 }

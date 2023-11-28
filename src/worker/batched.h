@@ -63,6 +63,13 @@ public:
     << " larger than maximum " << (model_lookup.size() - 1);
   }
 
+  /* Preconditions: set_weights_pages */
+  void transfer_weights_to_device(std::vector<char*> &weights_pages,
+    cudaStream_t stream) {
+    model_lookup[0]->transfer_weights_to_device(weights_pages, stream);
+  }
+
+
   /* Preconditions: instantiate_model_on_host */
   size_t input_size(unsigned batch_size) {
     check_batch_size(batch_size);
@@ -87,6 +94,21 @@ public:
     return model_lookup[batch_size]->workspace_memory_size();
   }
 
+  /* Preconditions: instantiate_model_on_host */
+  unsigned num_weights_pages(unsigned page_size) {
+    return model_lookup[0]->num_weights_pages(page_size);
+  }
+
+  /* Preconditions: instantiate_model_on_device */
+  void call(unsigned batch_size,
+    std::vector<char*> &weights_pages,
+    char* &io_memory, char* &workspace_memory,
+    cudaStream_t stream) {
+    check_batch_size(batch_size);
+    model_lookup[batch_size]->call(weights_pages, io_memory, workspace_memory, stream);
+  }
+
+
 public:
   static BatchedModel* loadFromDisk(std::string base_filename, unsigned gpu_id);
   static std::vector<BatchedModel*> loadMultipleFromDisk(std::string base_filename, unsigned gpu_id, int num_copies);
@@ -95,6 +117,8 @@ public:
     std::vector<unsigned> gpu_ids,
     int num_copies, unsigned max_batch_size,
     uint64_t max_exec_size);
+
+
 
 };
 
