@@ -74,6 +74,19 @@ public:
     return model_lookup[batch_size]->io_memory_size();
   }
 
+  void transfer_input_to_device(unsigned batch_size,
+    const char* input_ptr, char* &dst_io_memory,
+    cudaStream_t stream) {
+    check_batch_size(batch_size);
+    model_lookup[batch_size]->
+    transfer_input_to_device(single_input_size * batch_size, input_ptr, dst_io_memory, stream);
+  }
+
+  size_t workspace_memory_size(unsigned batch_size) {
+    check_batch_size(batch_size);
+    return model_lookup[batch_size]->workspace_memory_size();
+  }
+
 public:
   static BatchedModel* loadFromDisk(std::string base_filename, unsigned gpu_id);
   static std::vector<BatchedModel*> loadMultipleFromDisk(std::string base_filename, unsigned gpu_id, int num_copies);

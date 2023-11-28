@@ -312,6 +312,32 @@ public:
     return io_size;
   }
 
+  void transfer_input_to_device(size_t input_size,
+    const char* input_ptr, char* &dst_io_memory,
+    cudaStream_t stream) {
+    CHECK(spec != nullptr) << "transfer_input_to_device spec is nullptr";
+    CHECK(input_size <= inputs_size) << "transfer_input_to_device tried to transfer more bytes than allowed";
+    CHECK(spec->inputs[0].page == weights_pages_count) << "transfer_input_to_device expected input on page " << weights_pages_count;
+    CHECK(spec->inputs[0].page_offset == 0) << "transfer_input_to_device expected inputs to start at offset 0 on io_memory but found";
+
+    void *dst_ptr = dst_io_memory;
+    CUDA_CALL(cudaSetDevice(gpu_id));
+    CUDA_CALL(
+      cudaMemcpyAsync(
+        dst_ptr,
+        input_ptr,
+        input_size,
+        cudaMemcpyHostToDevice,
+        stream
+      )
+    )
+  }
+
+  size_t workspace_memory_size() const {
+    CHECK(spec != nullptr) << "workspace_memory_size spec is nullptr";
+    return workspace_size;
+  }
+
 private:
   void make_op_exec(PageMappedOpDef &spec, OpExec &op) {
     CUDA_CALL(cudaSetDevice(gpu_id));

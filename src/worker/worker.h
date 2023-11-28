@@ -19,6 +19,8 @@ public:
   void run() {
     start = std::chrono::steady_clock::now();
 
+    // Load Model From Disk Task
+
     // Load weights
     std::string weights;
     readFileAsString(
@@ -32,12 +34,14 @@ public:
     std::vector<char*> ptrs = cudaMallocHostMultiple(weights);
 
     size_t batch_size = 4;
+    size_t gpu_id = 0;
+
     auto model = new Model(
       model_data.so_memfile,
       model_data.serialized_spec,
       weights.size(),
       ptrs[0],
-      0 // am I correct?
+      gpu_id // am I correct?
     );
 
     std::vector<std::pair<unsigned, Model*>> models{};
@@ -47,7 +51,7 @@ public:
       weights.size(),
       ptrs[0],
       models,
-      0,
+      gpu_id,
       "../model"
     );
 
@@ -55,30 +59,49 @@ public:
     batched->instantiate_models_on_device();
     // End of load task
 
+
+    // Load weight task
+    auto weights_caches =
+    batched->num_weights_pages()
+
+
     // Copy Input task
     // skip
     auto input_size = batched->input_size(batch_size); // batch_size
+    auto host_io_pool = CUDAHostMemoryPool::create(536'870'912L);
+    auto input = host_io_pool->alloc(input_size);
+    CHECK_NOTNULL(input);
 
-    char *base_ptr;
-    CUDA_CALL(cudaSetDevice(0));
-    CUDA_CALL(cudaMalloc(&base_ptr, 536'870'912L)); // workspace size
-
-    auto alloc = std::make_shared<MemoryAllocation>(base_ptr, 0, input_size);
-    CHECK(base_ptr != nullptr);
-
-    size_t single_input_size = batched->input_size(1);
     InputGenerator generator{};
+    size_t single_input_size = batched->input_size(1);
     size_t offset = 0;
     for(int i = 0; i < batch_size; i++) {
-      generator.generateInput(single_input_size, base_ptr + offset);
+      generator.generateInput(single_input_size, input + offset);
       offset += single_input_size;
     }
 
     size_t io_memory_size = batched->io_memory_size(batch_size);
 
+    // io_pool_size
+    auto gpu_io_pool = CUDAMemoryPool::create(536'870'912L, gpu_id);
+    auto io_memory = gpu_io_pool->alloc(io_memory_size);
+    CHECK_NOTNULL(io_memory);
 
-    // use input generator to
+
+    batched->transfer_input_to_device(batch_size, input, io_memory, Stream());
+
+
+
     // Do Infer
+    size_t workspace_size = batched->workspace_memory_size(batch_size);
+
+    // workspace_pool_size
+    auto workspace_pool = CUDAMemoryPool::create(536'870'912L, gpu_id);
+    auto workspace_memory = workspace_pool->alloc(workspace_size);
+    CHECK_NOTNULL(workspace_memory);
+
+    batched->call(batch_size, weights->page_pointers, io_memory, workspace_memory, Stream());
+
   }
 };
 
