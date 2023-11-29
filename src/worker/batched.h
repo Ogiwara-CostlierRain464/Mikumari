@@ -108,18 +108,6 @@ public:
     model_lookup[batch_size]->call(weights_pages, io_memory, workspace_memory, stream);
   }
 
-
-public:
-  static BatchedModel* loadFromDisk(std::string base_filename, unsigned gpu_id);
-  static std::vector<BatchedModel*> loadMultipleFromDisk(std::string base_filename, unsigned gpu_id, int num_copies);
-  static std::map<unsigned, std::vector<BatchedModel*>>
-  loadMultipleFromDiskMultiGPU(std::string base_filename,
-    std::vector<unsigned> gpu_ids,
-    int num_copies, unsigned max_batch_size,
-    uint64_t max_exec_size);
-
-
-
 };
 
 }
