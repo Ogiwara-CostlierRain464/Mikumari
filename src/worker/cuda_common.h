@@ -25,6 +25,7 @@
 #define _MIKUMARI_CUDA_COMMON_H_
 
 #include <cuda_runtime.h>
+#include <cuda.h>
 #include <string>
 
 namespace mikumari {
@@ -47,21 +48,22 @@ namespace mikumari {
         << "CUDA: " << cudaGetErrorString(e);                      \
   }
 
-thread_local cudaStream_t current_stream;
+static thread_local cudaStream_t current_stream;
 
-void initializeCudaStream(unsigned gpu_id, int priority) {
+static inline void SetStream(cudaStream_t stream) {
+    current_stream = stream;
+}
+
+static cudaStream_t Stream() {
+    return current_stream;
+}
+
+
+static void initializeCudaStream(unsigned gpu_id, int priority) {
   CUDA_CALL(cudaSetDevice(gpu_id));
   cudaStream_t stream;
   CUDA_CALL(cudaStreamCreateWithPriority(&stream, cudaStreamNonBlocking, priority));
   SetStream(stream);
-}
-
-inline void SetStream(cudaStream_t stream) {
-  current_stream = stream;
-}
-
-cudaStream_t Stream() {
-  return current_stream;
 }
 
 struct hash_pair {

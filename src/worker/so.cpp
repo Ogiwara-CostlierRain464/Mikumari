@@ -80,4 +80,31 @@ void* TVMBackendAllocWorkspaceHot(int device_type,
 }
 
 
+void LoadedCUDAFunc::operator()(tvm::runtime::TVMArgs args, tvm::runtime::TVMRetValue *rv, void **void_args) const {
+        CUstream strm = static_cast<CUstream>(mikumari::Stream());
+        tvm::runtime::ThreadWorkLoad wl = source->thread_axis_cfg_.Extract(args);
+
+        CUresult result = cuLaunchKernel(
+                f,
+                wl.grid_dim(0),
+                wl.grid_dim(1),
+                wl.grid_dim(2),
+                wl.block_dim(0),
+                wl.block_dim(1),
+                wl.block_dim(2),
+                0, strm, void_args, 0);
+
+        if (result != CUDA_SUCCESS && result != CUDA_ERROR_DEINITIALIZED) {
+            const char *msg;
+            cuGetErrorName(result, &msg);
+            std::ostringstream os;
+            os << "cuLaunchKernel Error: " << msg << "\n"
+               << " grid=(" << wl.grid_dim(0) << ","
+               << wl.grid_dim(1) << "," << wl.grid_dim(2) << "), "
+               << " block=(" << wl.block_dim(0) << ","
+               << wl.block_dim(1) << "," << wl.block_dim(2) << ")\n";
+            os << "// func_name=" << source->info.name << "\n";
+            LOG(FATAL) << os.str();
+        }
+    }
 }

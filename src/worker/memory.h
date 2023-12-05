@@ -181,7 +181,7 @@ public:
   static CUDAMemoryPool* create(size_t size, unsigned gpu_id) {
     void *base_ptr;
     CUDA_CALL(cudaSetDevice(gpu_id));
-    CUDA_CALL(cudaMalloc(&baseptr, size));
+    CUDA_CALL(cudaMalloc(&base_ptr, size));
     return new CUDAMemoryPool(static_cast<char*>(base_ptr), size, gpu_id);
   }
 };

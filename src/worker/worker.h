@@ -2,6 +2,7 @@
 #define WORKER_H
 
 #include <chrono>
+#include <iostream>
 
 #include "batched.h"
 #include "generator.h"
@@ -17,6 +18,12 @@ public:
   std::chrono::steady_clock::time_point start;
 
   void run() {
+    size_t batch_size = 4;
+    size_t gpu_id = 0;
+    int model_id = 0;
+
+      initializeCudaStream(gpu_id, 0);
+
     MemoryManager manager{WorkerConfig{}};
 
     // Load Model From Disk Task
@@ -33,10 +40,6 @@ public:
 
     // Malloc and Copy the weights
     std::vector<char*> ptrs = cudaMallocHostMultiple(weights);
-
-    size_t batch_size = 4;
-    size_t gpu_id = 0;
-    int model_id = 0;
 
     auto model = new Model(
       model_data.so_memfile,
@@ -68,6 +71,7 @@ public:
     CHECK(success);
     // End of load task
 
+    std::cout << "Model Loaded" << std::endl;
 
     // Load weight task
     auto rm = manager.models->get(model_id, gpu_id);
@@ -79,6 +83,7 @@ public:
     CHECK(new_weights != nullptr);
     rm->model->transfer_weights_to_device(new_weights->page_pointers, Stream());
 
+      std::cout << "Weight transferred" << std::endl;
 
     // Copy Input task
     // skip
@@ -100,7 +105,7 @@ public:
     rm->model->transfer_input_to_device(batch_size, input, io_memory, Stream());
 
 
-
+    std::cout << "Input transferred" << std::endl;
 
     // Do Infer
     size_t workspace_size = rm->model->workspace_memory_size(batch_size);
@@ -109,6 +114,7 @@ public:
 
     rm->model->call(batch_size, rm->weights->page_pointers, io_memory, workspace_memory, Stream());
 
+    std::cout << "Model called" << std::endl;
   }
 };
 

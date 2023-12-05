@@ -1,6 +1,6 @@
 #include "cache.h"
 
-#include <tvm/runtime/logging.h>
+#include <dmlc/logging.h>
 
 #include "cuda_common.h"
 

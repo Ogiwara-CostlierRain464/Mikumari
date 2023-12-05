@@ -109,7 +109,7 @@ struct ModelData {
 inline ModelData loadModelData() {
   std::string clockwork_filename = "../model/model.4.clockwork";
   std::string serialized_spec;
-  readCWConfigAsString(clockwork_filename, serialized_spec);
+  readFileAsString(clockwork_filename, serialized_spec);
 
   return ModelData{
     .batch_size = 4,

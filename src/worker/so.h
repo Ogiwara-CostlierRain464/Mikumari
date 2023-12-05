@@ -5,6 +5,7 @@
 #include <tvm/runtime/c_backend_api.h>
 #include <dlfcn.h>
 #include <dmlc/memory_io.h>
+#include <unordered_map>
 
 #include "cuda_common.h"
 #include "tvm/meta_data.h"
@@ -31,33 +32,7 @@ public:
 
   void operator()(tvm::runtime::TVMArgs args,
                   tvm::runtime::TVMRetValue* rv,
-                  void** void_args) const {
-    CUstream strm = static_cast<CUstream>(mikumari::Stream());
-    tvm::runtime::ThreadWorkLoad wl = source->thread_axis_cfg_.Extract(args);
-
-    CUresult result = cuLaunchKernel(
-    f,
-    wl.grid_dim(0),
-    wl.grid_dim(1),
-    wl.grid_dim(2),
-    wl.block_dim(0),
-    wl.block_dim(1),
-    wl.block_dim(2),
-    0, strm, void_args, 0);
-
-    if (result != CUDA_SUCCESS && result != CUDA_ERROR_DEINITIALIZED) {
-      const char *msg;
-      cuGetErrorName(result, &msg);
-      std::ostringstream os;
-      os << "cuLaunchKernel Error: " << msg << "\n"
-         << " grid=(" << wl.grid_dim(0) << ","
-         << wl.grid_dim(1) << "," << wl.grid_dim(2) << "), "
-         << " block=(" << wl.block_dim(0) << ","
-         << wl.block_dim(1) << "," << wl.block_dim(2) << ")\n";
-      os << "// func_name=" << source->info.name << "\n";
-      LOG(FATAL) << os.str();
-    }
-  }
+                  void** void_args) const;
 };
 
 class UnloadedCUDAFunc {
@@ -69,7 +44,8 @@ public:
   tvm::runtime::PackedFunc packed;
 
   UnloadedCUDAFunc(const std::string &name,
-    const tvm::runtime::FunctionInfo &info) {
+    const tvm::runtime::FunctionInfo &info):
+    name(name), info(info){
     thread_axis_cfg_.Init(info.arg_types.size(), info.thread_axis_tags);
     packed = tvm::runtime::PackFuncVoidAddr(
       [this] (tvm::runtime::TVMArgs args, tvm::runtime::TVMRetValue* rv, void** void_args) {

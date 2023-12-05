@@ -2,6 +2,8 @@
 #define _MIKUMARI_CACHE_H_
 #include <mutex>
 #include <vector>
+#include <functional>
+#include <memory>
 
 namespace mikumari {
 

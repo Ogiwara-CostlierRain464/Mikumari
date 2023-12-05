@@ -6,8 +6,8 @@
 #include <libgen.h>
 #include <dmlc/logging.h>
 #include <sys/stat.h>
-#include <__filesystem/directory_iterator.h>
 #include <lz4.h>
+#include <filesystem>
 
 #include "model_loader.h"
 

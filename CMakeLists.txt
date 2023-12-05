@@ -1,7 +1,8 @@
-cmake_minimum_required(VERSION 3.27)
+cmake_minimum_required(VERSION 3.4.1)
 project(Mikumari)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_BUILD_TYPE Debug)
 
 # Introduce variables:
 # * CMAKE_INSTALL_LIBDIR
@@ -27,7 +28,7 @@ link_directories(
 
 file(GLOB_RECURSE INCLUDE src/*.h)
 file(GLOB_RECURSE SRC src/*.cpp)
-add_executable(Worker
+add_executable(worker
         ${INCLUDE}
         ${SRC}
         src/worker/main.cpp
@@ -35,7 +36,7 @@ add_executable(Worker
         external/lz4hc.c
 )
 
-target_link_libraries(Worker PUBLIC
+target_link_libraries(worker PUBLIC
         cuda
         cudart
         tvm_runtime

@@ -151,7 +151,12 @@ struct PageMappedModelDef {
         PODS_MDR(weights_pages)
     )
 
-    static void ReadFrom(const std::string &data, PageMappedModelDef &def);
+    static void ReadFrom(const std::string &data, PageMappedModelDef &def){
+        pods::InputBuffer in(data.data(), data.size());
+        pods::BinaryDeserializer<decltype(in)> deserializer(in);
+        pods::Error status = deserializer.load(def);
+        CHECK(status == pods::Error::NoError) << "Cannot deserialize minmodel";
+    }
 
     // TODO: currently, src/convert.cpp is the only usage of writing model defs; eventually migrate code here
 };
