@@ -120,21 +120,6 @@ inline ModelData loadModelData() {
   };
 }
 
-inline std::vector<char*> cudaMallocHostMultiple(
-  const std::string &data, unsigned num_copies = 1) {
-
-  size_t size = data.size();
-  std::vector<char*> ptrs(num_copies);
-  void *ptr;
-  size_t total_size= size * num_copies;
-  CUDA_CALL(cudaMallocHost(&ptr, total_size));
-  for (unsigned i = 0; i < num_copies; i++) {
-    ptrs[i] = static_cast<char*>(ptr) + (size * i);
-    std::memcpy(ptrs[i], data.data(), size);
-  }
-  return ptrs;
-}
-
 // TVM Function signature for generated packed function in shared library
 typedef int (*OpFunc)(void* args, int* type_codes, int num_args);
 
@@ -391,6 +376,16 @@ public:
       call_op_exec((*op_execs)[i], pages);
       if (rate_limit) exec_limiter->limit(stream);
     }
+  }
+
+  [[nodiscard]] size_t input_size() const {
+    CHECK(spec != nullptr) << "input_size spec is nullptr";
+    return inputs_size;
+  }
+
+  [[nodiscard]] size_t output_size() const {
+    CHECK(spec != nullptr) << "output_size spec is nullptr";
+    return outputs_size;
   }
 
 private:

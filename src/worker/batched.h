@@ -49,6 +49,37 @@ public:
     for(auto & [fst, snd] : models) {
       snd->instantiate_model_on_host();
     }
+
+    // Perform checks
+    unsigned expected_input_size = 0;
+    unsigned expected_output_size = 0;
+    for (auto &p : models) {
+      unsigned batch_size = p.first;
+      Model* model = p.second;
+
+      unsigned single_input_size = model->input_size() / batch_size;
+
+      if (expected_input_size == 0) {
+        expected_input_size = single_input_size;
+      } else {
+        CHECK(expected_input_size == single_input_size)
+          << "Inconsistent input sizes between batch variants "
+          << "b=" << batch_size << " has  " << single_input_size << " per input, expected " << expected_input_size;
+      }
+
+      unsigned single_output_size = model->output_size() / batch_size;
+
+      if (expected_output_size == 0) {
+        expected_output_size = single_output_size;
+      } else {
+        CHECK(expected_output_size == single_output_size)
+          << "Inconsistent output sizes between batch variants "
+          << expected_output_size << " and " << single_output_size;
+      }
+    }
+
+    this->single_input_size = expected_input_size;
+    this->single_output_size = expected_output_size;
   }
   /* Preconditions: instantiate_model_on_host */
   void instantiate_models_on_device() {

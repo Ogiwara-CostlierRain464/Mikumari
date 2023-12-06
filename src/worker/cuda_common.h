@@ -75,6 +75,15 @@ struct hash_pair {
   }
 };
 
+static void setCudaFlags() {
+  cudaError_t error = cudaSetDeviceFlags(cudaDeviceScheduleSpin);
+  if(error != cudaSuccess) {
+    // print the CUDA error message and exit
+    printf("CUDA error: %s\n", cudaGetErrorString(error));
+    exit(-1);
+  }
+}
+
 }
 
 

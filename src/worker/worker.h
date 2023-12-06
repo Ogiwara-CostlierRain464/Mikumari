@@ -22,9 +22,10 @@ public:
     size_t gpu_id = 0;
     int model_id = 0;
 
-      initializeCudaStream(gpu_id, 0);
-
     MemoryManager manager{WorkerConfig{}};
+
+    setCudaFlags();
+    initializeCudaStream(gpu_id, 0);
 
     // Load Model From Disk Task
     // from BatchedModel::loadMultipleFromDiskMultiGPU
@@ -34,18 +35,20 @@ public:
     readFileAsString(
       "../model/model.4.clockwork_params",
       weights);
+    int weights_size = weights.size();
+    char *weights_pinned_host_memory;
+    CUDA_CALL(cudaSetDevice(gpu_id));
+    CUDA_CALL(cudaMallocHost(&weights_pinned_host_memory, weights_size));
+    std::memcpy(weights_pinned_host_memory, weights.data(), weights_size);
 
     // Load model
     ModelData model_data = loadModelData();
-
-    // Malloc and Copy the weights
-    std::vector<char*> ptrs = cudaMallocHostMultiple(weights);
 
     auto model = new Model(
       model_data.so_memfile,
       model_data.serialized_spec,
       weights.size(),
-      ptrs[0],
+      weights_pinned_host_memory,
       gpu_id // am I correct?
     );
 
@@ -54,13 +57,17 @@ public:
 
     auto batched = new BatchedModel(
       weights.size(),
-      ptrs[0],
+      weights_pinned_host_memory,
       models,
       gpu_id,
       "../model"
     );
 
     batched->instantiate_models_on_host();
+    for(auto & [fst, snd] : batched->models) {
+      snd->rate_limit = false;
+    }
+
     batched->instantiate_models_on_device();
 
     bool success = manager.models->put_if_absent(

@@ -8,7 +8,7 @@ public:
   unsigned num_gpus = 1;
 
   size_t weights_cache_size = 13'421'772'800L;
-  size_t weights_cache_page_size = 16'777'216L;
+  size_t weights_cache_page_size = 16 * 1024 * 1024;
   size_t io_pool_size = 536'870'912L;
   size_t workspace_pool_size = 536'870'912L;
   size_t host_io_pool_size = 536'870'912L;
