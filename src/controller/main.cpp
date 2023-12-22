@@ -9,6 +9,15 @@ namespace asio = boost::asio;
 using asio::ip::tcp;
 using namespace std::chrono_literals;
 
+tbb::concurrent_bounded_queue<bool> queue{};
+
+void read_thread() {
+  for(;;) {
+    bool req;
+    queue.pop(req);
+    std::cout << "new req" << std::endl;
+  }
+}
 
 class Session : public std::enable_shared_from_this<Session>{
   tcp::socket socket;
@@ -28,6 +37,9 @@ public:
       auto data = asio::buffer_cast<const char*>(buf.data());
       std::cout << "receive: " << data << std::endl;
 
+      queue.push(false);
+
+      // wait worker
       std::this_thread::sleep_for(4s);
       std::cout << "sleep finished" << std::endl;
 
@@ -38,8 +50,6 @@ public:
     }
   }
 };
-
-tbb::concurrent_queue<bool> queue{};
 
 
 class Server {
@@ -64,10 +74,13 @@ public:
 
 
 int main() {
+  std::thread reader(read_thread);
+
   asio::io_service io_service;
 
   Server server(io_service, 12345);
   server.doAccept();
 
   io_service.run();
+  reader.join();
 }
