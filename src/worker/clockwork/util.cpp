@@ -104,6 +104,13 @@ void readFileAsString(const std::string &filename, std::string &dst) {
   in.close();
 }
 
+struct path_leaf_string
+{
+  std::string operator()(const boost::filesystem::directory_entry& entry) const
+  {
+    return entry.path().leaf().string();
+  }
+};
 
 std::vector<std::string> listdir(std::string directory) {
   std::vector<std::string> filenames;

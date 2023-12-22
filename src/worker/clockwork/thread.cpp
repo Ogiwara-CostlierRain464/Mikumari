@@ -1,4 +1,4 @@
-#include "clockwork/thread.h"
+#include "thread.h"
 
 #include <cuda_runtime.h>
 #include <nvml.h>

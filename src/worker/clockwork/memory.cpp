@@ -3,8 +3,6 @@
 #include <exception>
 #include <libconfig.h++>
 #include <algorithm>
-#include <tvm/runtime/logging.h>
-
 
 namespace clockwork {
 
