@@ -4,6 +4,9 @@ project(Mikumari)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Debug)
 
+set(CXX "g++-8")
+set(CC "gcc-8")
+
 find_package(Boost COMPONENTS system REQUIRED)
 find_package(TBB REQUIRED)
 
@@ -52,23 +55,21 @@ link_directories(
         /usr/lib/x86_64-linux-gnu/nvidia/current
 )
 
-file(GLOB_RECURSE INCLUDE src/*.h)
-file(GLOB_RECURSE SRC src/*.cpp)
+file(GLOB_RECURSE WORKER_INCLUDE src/worker/*.h)
+file(GLOB_RECURSE WORKER_SRC src/worker/*.cpp)
 add_executable(worker
-        ${INCLUDE}
-        ${SRC}
+        ${WORKER_INCLUDE}
+        ${WORKER_SRC}
         src/worker/main.cpp
         external/lz4.c
         external/lz4hc.c
-)
-
-add_executable(dummy
-        src/worker/dummy.cpp
 )
 
 target_link_libraries(worker PUBLIC
         cuda
         cudart
         tvm_runtime
+        ${Boost_SYSTEM_LIBRARY}
+        config++
 )
 
