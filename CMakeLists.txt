@@ -60,7 +60,6 @@ file(GLOB_RECURSE WORKER_SRC src/worker/*.cpp)
 add_executable(worker
         ${WORKER_INCLUDE}
         ${WORKER_SRC}
-        src/worker/main.cpp
         external/lz4.c
         external/lz4hc.c
 )
@@ -69,7 +68,9 @@ target_link_libraries(worker PUBLIC
         cuda
         cudart
         tvm_runtime
+        nvidia-ml
         ${Boost_SYSTEM_LIBRARY}
         config++
+        rt
 )
 
