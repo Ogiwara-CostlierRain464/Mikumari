@@ -1,31 +1,73 @@
 #include <iostream>
 #include <boost/asio.hpp>
 #include <boost/version.hpp>
+#include <tbb/concurrent_queue.h>
+#include <thread>
+#include <chrono>
 
 namespace asio = boost::asio;
 using asio::ip::tcp;
+using namespace std::chrono_literals;
+
+
+class Session : public std::enable_shared_from_this<Session>{
+  tcp::socket socket;
+
+public:
+  explicit Session(tcp::socket &&socket):
+  socket(std::move(socket)){}
+
+  void start() {
+    asio::streambuf buf;
+    boost::system::error_code err;
+    asio::read_until(socket, buf, "\0", err);
+
+    if(err && err != asio::error::eof) {
+      std::cerr << "receive failed: " << err.message() << std::endl;
+    }else {
+      auto data = asio::buffer_cast<const char*>(buf.data());
+      std::cout << "receive: " << data << std::endl;
+
+      std::this_thread::sleep_for(4s);
+      std::cout << "sleep finished" << std::endl;
+
+      std::string msg = "kick back!";
+      asio::write(socket, asio::buffer(msg), err);
+
+      socket.close();
+    }
+  }
+};
+
+tbb::concurrent_queue<bool> queue{};
+
+
+class Server {
+  tcp::acceptor acceptor;
+
+public:
+  explicit Server(asio::io_context &io_context, unsigned short port):
+    acceptor(io_context, tcp::endpoint(tcp::v4(), port))
+  {}
+
+  void doAccept() {
+    acceptor.async_accept([this](const boost::system::error_code &err, tcp::socket socket) {
+      if(err) {
+        std::cerr << err.message() << std::endl;
+      }else {
+        std::make_shared<Session>(std::move(socket))->start();
+      }
+      doAccept();
+    });
+  }
+};
+
 
 int main() {
-  std::cout << "Boost v: " << BOOST_LIB_VERSION << std::endl;
-
   asio::io_service io_service;
 
-  tcp::acceptor acc(io_service, tcp::endpoint(
-    tcp::v4(), 12345
-  ));
-  tcp::socket socket(io_service);
+  Server server(io_service, 12345);
+  server.doAccept();
 
-  acc.accept(socket);
-
-  asio::streambuf receive_buffer;
-  boost::system::error_code err;
-  asio::read(socket, receive_buffer,
-    asio::transfer_all(), err);
-
-  if(err && err != asio::error::eof) {
-    std::cout << "receive failed: " << err.message() << std::endl;
-  }else {
-    auto data = asio::buffer_cast<const char*>(receive_buffer.data());
-    std::cout << data << std::endl;
-  }
+  io_service.run();
 }

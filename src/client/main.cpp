@@ -12,13 +12,17 @@ int main() {
     asio::ip::address::from_string("127.0.0.1"), 12345
     ));
 
-  const std::string msg = "a req from client";
+  const std::string msg = "Hello!";
   boost::system::error_code err;
   asio::write(socket, asio::buffer(msg), err);
+  assert(!err);
 
-  if(err) {
-    std::cout << "send failed: " << err.message() << std::endl;
-  }else {
-    std::cout << "send correct" << std::endl;
-  }
+
+  asio::streambuf buf;
+  asio::read_until(socket, buf, "\0",err);
+  assert(!err);
+  auto data = asio::buffer_cast<const char*>(buf.data());
+  std::cout << data << std::endl;
+
+
 }

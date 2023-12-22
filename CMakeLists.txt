@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Debug)
 
 find_package(Boost COMPONENTS system REQUIRED)
+find_package(TBB REQUIRED)
 
 file(GLOB_RECURSE CONTROLLER_INCLUDE src/controller/*.h)
 file(GLOB_RECURSE CONTROLLER_SRC src/controller/*.cpp)
@@ -16,6 +17,7 @@ add_executable(controller
 )
 target_link_libraries(controller
         ${Boost_SYSTEM_LIBRARY}
+        TBB::tbb
 )
 
 file(GLOB_RECURSE CLIENT_SRC src/client/*.cpp)
