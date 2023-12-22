@@ -7,7 +7,7 @@ set(CMAKE_BUILD_TYPE Debug)
 set(CXX "g++-8")
 set(CC "gcc-8")
 
-find_package(Boost COMPONENTS system REQUIRED)
+find_package(Boost COMPONENTS system filesystem REQUIRED)
 find_package(TBB REQUIRED)
 
 file(GLOB_RECURSE CONTROLLER_INCLUDE src/controller/*.h)
