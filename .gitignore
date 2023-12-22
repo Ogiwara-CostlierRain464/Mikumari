@@ -57,4 +57,8 @@ cmake-build-debug
 
 
 # Exception
-!model/model.4.so
+!resources/resnet18_tesla-m40/model.1.so
+!resources/resnet18_tesla-m40/model.2.so
+!resources/resnet18_tesla-m40/model.4.so
+!resources/resnet18_tesla-m40/model.8.so
+!resources/resnet18_tesla-m40/model.16.so
