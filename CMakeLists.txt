@@ -70,6 +70,7 @@ target_link_libraries(worker PUBLIC
         tvm_runtime
         nvidia-ml
         ${Boost_SYSTEM_LIBRARY}
+        ${Boost_FILESYSTEM_LIBRARY}
         config++
         rt
 )
