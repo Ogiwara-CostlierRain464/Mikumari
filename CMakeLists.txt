@@ -57,9 +57,31 @@ link_directories(
 
 file(GLOB_RECURSE WORKER_INCLUDE src/worker/*.h)
 file(GLOB_RECURSE WORKER_SRC src/worker/*.cpp)
+list(REMOVE_ITEM WORKER_SRC src/worker/main.cpp src/worker/check_model.cpp)
+
+add_executable(check_model
+        ${WORKER_INCLUDE}
+        ${WORKER_SRC}
+        src/worker/check_model.cpp
+        external/lz4.c
+        external/lz4hc.c
+)
+
+target_link_libraries(check_model PUBLIC
+        cuda
+        cudart
+        tvm_runtime
+        nvidia-ml
+        ${Boost_SYSTEM_LIBRARY}
+        ${Boost_FILESYSTEM_LIBRARY}
+        config++
+        rt
+)
+
 add_executable(worker
         ${WORKER_INCLUDE}
         ${WORKER_SRC}
+        src/worker/main.cpp
         external/lz4.c
         external/lz4hc.c
 )
