@@ -37,11 +37,24 @@ public:
       auto data = asio::buffer_cast<const char*>(buf.data());
       std::cout << "receive: " << data << std::endl;
 
-      queue.push(false);
+      //queue.push(false);
 
-      // wait worker
-      std::this_thread::sleep_for(4s);
-      std::cout << "sleep finished" << std::endl;
+      // connect to worker and wait
+      asio::io_service io_service;
+      tcp::socket w_socket(io_service);
+
+      w_socket.connect(tcp::endpoint(
+        asio::ip::address::from_string("127.0.0.1"), 12346
+        ));
+
+      const std::string msg_to_worker = "Please use this model";
+      asio::write(w_socket, asio::buffer(msg_to_worker), err);
+      assert(!err);
+
+      asio::read_until(w_socket, buf, "\0",err);
+      assert(!err);
+
+      std::cout << "worker replied!" << std::endl;
 
       std::string msg = "kick back!";
       asio::write(socket, asio::buffer(msg), err);
