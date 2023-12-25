@@ -68,7 +68,7 @@ file(GLOB_RECURSE WORKER_SRC src/worker/*.cpp)
 list(REMOVE_ITEM WORKER_SRC src/worker/main.cpp src/worker/check_model.cpp)
 
 message("Worker src is:")
-message(WORKER_SRC)
+message(${WORKER_SRC})
 
 add_executable(check_model
         ${WORKER_INCLUDE}
