@@ -65,7 +65,7 @@ link_directories(
 
 file(GLOB_RECURSE WORKER_INCLUDE src/worker/*.h)
 file(GLOB_RECURSE WORKER_SRC src/worker/*.cpp)
-list(REMOVE_ITEM WORKER_SRC */src/worker/main.cpp */src/worker/check_model.cpp)
+list(REMOVE_ITEM WORKER_SRC /root/Mikumari/src/worker/main.cpp /root/Mikumari/src/worker/check_model.cpp)
 
 message("Worker src is:")
 message(${WORKER_SRC})
