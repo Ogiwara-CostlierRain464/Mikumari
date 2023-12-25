@@ -30,7 +30,7 @@ public:
       std::cerr << "receive failed: " << err.message() << std::endl;
     }else {
       auto data = asio::buffer_cast<const char*>(buf.data());
-      std::cout << "receive: " << data << std::endl;
+      std::cout << "ok, I use " << data << " model" << std::endl;
 
       queue.push(shared_from_this());
     }
@@ -46,7 +46,7 @@ void read_thread() {
     // call gpu at here
 
 
-    std::string msg = "inference completed";
+    std::string msg = "cat detected";
     boost::system::error_code err;
     asio::write(req->socket, asio::buffer(msg), err);
     req->socket.close();

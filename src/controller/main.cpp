@@ -35,7 +35,7 @@ public:
       std::cerr << "receive failed: " << err.message() << std::endl;
     }else {
       auto data = asio::buffer_cast<const char*>(buf.data());
-      std::cout << "receive: " << data << std::endl;
+      std::cout << "request to use " << data << " model" << std::endl;
 
       //queue.push(false);
 
@@ -47,17 +47,17 @@ public:
         asio::ip::address::from_string("127.0.0.1"), 12346
         ));
 
-      const std::string msg_to_worker = "Please use this model";
+      const std::string msg_to_worker = data;
       asio::write(w_socket, asio::buffer(msg_to_worker), err);
       assert(!err);
 
-      asio::read_until(w_socket, buf, "\0",err);
+      asio::streambuf buf2;
+      asio::read_until(w_socket, buf2, "\0",err);
       assert(!err);
 
       std::cout << "worker replied!" << std::endl;
 
-      std::string msg = "kick back!";
-      asio::write(socket, asio::buffer(msg), err);
+      asio::write(socket, buf2, err);
 
       socket.close();
     }

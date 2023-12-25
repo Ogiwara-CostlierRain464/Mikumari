@@ -12,7 +12,7 @@ int main() {
     asio::ip::address::from_string("127.0.0.1"), 12345
     ));
 
-  const std::string msg = "Hello!";
+  const std::string msg = "resnet";
   boost::system::error_code err;
   asio::write(socket, asio::buffer(msg), err);
   assert(!err);
@@ -22,7 +22,7 @@ int main() {
   asio::read_until(socket, buf, "\0",err);
   assert(!err);
   auto data = asio::buffer_cast<const char*>(buf.data());
-  std::cout << data << std::endl;
+  std::cout << "Inference result: " << data << std::endl;
 
 
 }
