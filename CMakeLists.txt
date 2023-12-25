@@ -10,6 +10,14 @@ set(CC "gcc-8")
 find_package(Boost COMPONENTS system filesystem REQUIRED)
 find_package(TBB REQUIRED)
 
+#find_package(Protobuf REQUIRED)
+#set(Protobuf_PROTOC_EXECUTABLE /usr/local/bin/protoc)
+#include_directories(${Protobuf_INCLUDE_DIR})
+#include_directories(${CMAKE_CURRENT_BINARY_DIR})
+#protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS proto/mikumari.proto)
+#add_library(mikumari_proto ${PROTO_HDRS} ${PROTO_SRCS})
+#target_link_libraries(mikumari_proto INTERFACE ${Protobuf_LIBRARIES})
+
 file(GLOB_RECURSE CONTROLLER_INCLUDE src/controller/*.h)
 file(GLOB_RECURSE CONTROLLER_SRC src/controller/*.cpp)
 

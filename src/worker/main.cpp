@@ -45,6 +45,7 @@ void read_thread() {
 
     // call gpu at here
 
+
     std::string msg = "inference completed";
     boost::system::error_code err;
     asio::write(req->socket, asio::buffer(msg), err);

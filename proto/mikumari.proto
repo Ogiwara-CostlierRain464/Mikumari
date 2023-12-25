@@ -1,0 +1,12 @@
+syntax = "proto2";
+
+package mikumari;
+
+message ModelInferenceReqProto {
+  required uint32 model_id = 1;
+  required float slo_factor = 2;
+}
+
+message ModelInferenceRspProto {
+  required uint32 model_id = 1;
+}
